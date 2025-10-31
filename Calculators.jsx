@@ -1,2 +1,0 @@
-inventory-server/
-inventory-web/
