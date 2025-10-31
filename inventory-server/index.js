@@ -1,51 +1,136 @@
-import express from "express";
-import cors from "cors";
-import dotenv from "dotenv";
-import jwt from "jsonwebtoken";
-import bcrypt from "bcryptjs";
-import sqlite3 from "sqlite3";
-import { open } from "sqlite";
-import path from "path";
-import fs from "fs";
+import React from "react";
+import ReactDOM from "react-dom/client";
 
-dotenv.config();
-const app = express();
-app.use(cors());
-app.use(express.json());
+const API = window.__API__;
 
-// database
-const dbFile = path.join(process.cwd(), "inventory-server", "database", "lagerpro.db");
-fs.mkdirSync(path.dirname(dbFile), { recursive: true });
-const db = await open({ filename: dbFile, driver: sqlite3.Database });
+function Login({ onLogin }) {
+  const [username, setU] = React.useState("");
+  const [password, setP] = React.useState("");
+  const [err, setErr] = React.useState("");
 
-// sørg for at tabellene finnes
-await db.exec(`
-CREATE TABLE IF NOT EXISTS users (id INTEGER PRIMARY KEY, username TEXT, password TEXT);
-CREATE TABLE IF NOT EXISTS products (id INTEGER PRIMARY KEY, name TEXT, qty INTEGER DEFAULT 0);
-`);
-const admin = await db.get("SELECT * FROM users WHERE username=?", ["admin"]);
-if (!admin) await db.run("INSERT INTO users (username,password) VALUES (?,?)", ["admin", "lagerpro123"]);
+  async function handleLogin(e) {
+    e.preventDefault();
+    setErr("");
+    try {
+      const r = await fetch(API + "/api/login", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ username, password }),
+      });
+      if (!r.ok) throw new Error("Feil brukernavn/passord");
+      const data = await r.json();
+      localStorage.setItem("token", data.token);
+      onLogin(data.token);
+    } catch (e) {
+      setErr(e.message);
+    }
+  }
 
-// login
-app.post("/api/login", async (req, res) => {
-  const { username, password } = req.body;
-  const u = await db.get("SELECT * FROM users WHERE username=?", [username]);
-  if (!u) return res.status(401).json({ error: "Feil brukernavn" });
-  if (password !== u.password) return res.status(401).json({ error: "Feil passord" });
-  const token = jwt.sign({ id: u.id, username }, process.env.JWT_SECRET || "dev", { expiresIn: "12h" });
-  res.json({ token });
-});
+  return (
+    <form onSubmit={handleLogin} style={{ maxWidth: 300 }}>
+      <h2>🔐 Logg inn</h2>
+      <input
+        placeholder="Brukernavn"
+        value={username}
+        onChange={(e) => setU(e.target.value)}
+        style={{ width: "100%", marginBottom: 5 }}
+      />
+      <input
+        type="password"
+        placeholder="Passord"
+        value={password}
+        onChange={(e) => setP(e.target.value)}
+        style={{ width: "100%", marginBottom: 5 }}
+      />
+      <button style={{ width: "100%" }}>Logg inn</button>
+      {err && <p style={{ color: "red" }}>{err}</p>}
+    </form>
+  );
+}
 
-// enkle endepunkt for produkter
-app.get("/api/products", async (req, res) => {
-  res.json(await db.all("SELECT * FROM products"));
-});
-app.post("/api/products", async (req, res) => {
-  const { name, qty } = req.body;
-  await db.run("INSERT INTO products (name, qty) VALUES (?,?)", [name, qty || 0]);
-  res.json({ ok: true });
-});
+function Products({ token }) {
+  const [list, setList] = React.useState([]);
+  const [name, setName] = React.useState("");
+  const [qty, setQty] = React.useState("");
 
-app.get("/api/ping", (req, res) => res.json({ ok: true, version: "7.3", name: "LagerPro – Henrik Edition" }));
+  async function load() {
+    const r = await fetch(API + "/api/products", {
+      headers: { Authorization: "Bearer " + token },
+    });
+    if (r.ok) setList(await r.json());
+  }
 
-app.listen(4000, () => console.log("Server på http://localhost:4000"));
+  async function addProduct(e) {
+    e.preventDefault();
+    await fetch(API + "/api/products", {
+      method: "POST",
+      headers: {
+        "Content-Type": "application/json",
+        Authorization: "Bearer " + token,
+      },
+      body: JSON.stringify({ name, qty: Number(qty) }),
+    });
+    setName("");
+    setQty("");
+    load();
+  }
+
+  React.useEffect(() => {
+    load();
+  }, []);
+
+  return (
+    <div>
+      <h2>📦 Produkter</h2>
+      <form onSubmit={addProduct} style={{ marginBottom: 10 }}>
+        <input
+          placeholder="Navn"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+        />
+        <input
+          type="number"
+          placeholder="Antall"
+          value={qty}
+          onChange={(e) => setQty(e.target.value)}
+          style={{ width: 80, marginLeft: 5 }}
+        />
+        <button style={{ marginLeft: 5 }}>Legg til</button>
+      </form>
+      <table border="1" cellPadding="5">
+        <thead>
+          <tr>
+            <th>ID</th>
+            <th>Navn</th>
+            <th>Antall</th>
+          </tr>
+        </thead>
+        <tbody>
+          {list.map((p) => (
+            <tr key={p.id}>
+              <td>{p.id}</td>
+              <td>{p.name}</td>
+              <td>{p.qty}</td>
+            </tr>
+          ))}
+        </tbody>
+      </table>
+    </div>
+  );
+}
+
+function App() {
+  const [token, setToken] = React.useState(localStorage.getItem("token"));
+  return (
+    <div style={{ fontFamily: "sans-serif", padding: 20 }}>
+      <h1>LagerPro v7.3 – Henrik Edition</h1>
+      {!token ? (
+        <Login onLogin={setToken} />
+      ) : (
+        <Products token={token} />
+      )}
+    </div>
+  );
+}
+
+ReactDOM.createRoot(document.getElementById("root")).render(<App />);
