@@ -1,0 +1,40 @@
+import React,{useEffect,useRef,useState}from'react'
+import * as THREE from 'three'
+import{getProjects,bulkSaveMaterials}from'../src/api'
+const r2=x=>Math.round(x*100)/100
+function wallsCalc(p){const perimeter=2*(p.length+p.width);const studs=Math.ceil(perimeter/p.studSpacing)+4;const area=perimeter*p.height;const openings=(p.doorW*p.doorH)+(p.winW*p.winH);const net=Math.max(0,area-openings);const sheet=p.boardW*p.boardL;return{perimeter:r2(perimeter),studs,netArea:r2(net),sheets:Math.ceil(net/sheet)}}
+function roofCalc(p){const pitch=Math.tan((p.pitchDeg*Math.PI)/180);const rise=(p.width/2)*pitch;const slopeLen=Math.sqrt((p.width/2)**2+rise**2);const area=p.length*slopeLen*2;const sheet=p.boardW*p.boardL;const trussCount=Math.ceil(p.length/0.6)+1;return{area:r2(area),sheets:Math.ceil(area/sheet),trussCount,topChord:r2(slopeLen)}}
+function floorCalc(p,fb){const area=p.length*p.width;const sheet=fb.boardW*fb.boardL;return{area:r2(area),sheets:Math.ceil(area/sheet)}}
+function insulationCalc(net,ins){const pa=ins.panelW*ins.panelL;return{panels:Math.ceil((net||0)/pa)}}
+function tilesCalc(area,t){const ta=t.tileW*t.tileL;return{count:Math.ceil((area*(1+t.sparePct/100))/ta)}}
+function createScene(p,canvas){const scene=new THREE.Scene();const cam=new THREE.PerspectiveCamera(60,1,0.1,100);cam.position.set(7,6,7);cam.lookAt(0,1,0);const rnd=new THREE.WebGLRenderer({canvas,antialias:true});rnd.setSize(420,420);const floor=new THREE.Mesh(new THREE.BoxGeometry(p.length,0.05,p.width),new THREE.MeshPhongMaterial({color:0xe2e8f0}));scene.add(floor);const h=p.height,L=p.length,W=p.width;const mat=new THREE.MeshBasicMaterial({color:0xbec7ff,side:THREE.DoubleSide});const wall=(w,rot,pos)=>{const m=new THREE.Mesh(new THREE.PlaneGeometry(w,h),mat);m.position.set(pos.x,pos.y,pos.z);m.rotation.set(0,rot,0);scene.add(m)};wall(L,0,{x:0,y:h/2,z:-W/2});wall(L,Math.PI,{x:0,y:h/2,z:W/2});wall(W,Math.PI/2,{x:-L/2,y:h/2,z:0});wall(W,-Math.PI/2,{x:L/2,y:h/2,z:0});const pitch=Math.tan((p.pitchDeg*Math.PI)/180);const rise=(W/2)*pitch;const slopeLen=Math.sqrt((W/2)**2+rise**2);const roofG=new THREE.PlaneGeometry(L,slopeLen);const roofM=new THREE.MeshBasicMaterial({color:0xced4ff,side:THREE.DoubleSide});const r1=new THREE.Mesh(roofG,roofM);r1.rotation.x=Math.PI/2-Math.atan(pitch);r1.position.set(0,h+rise/2,0);const r2m=r1.clone();r2m.rotation.y=Math.PI;scene.add(r1);scene.add(r2m);const light=new THREE.DirectionalLight(0xffffff,1);light.position.set(5,10,7);scene.add(light);const amb=new THREE.AmbientLight(0xffffff,0.4);scene.add(amb);rnd.render(scene,cam);return()=>{rnd.dispose()}}
+
+export default function Calculators(){
+  const [p,setP]=useState({length:6,width:4,height:2.6,studSpacing:0.6,boardW:1.2,boardL:2.4,doorW:0.9,doorH:2.1,winW:1.2,winH:1.0,pitchDeg:25})
+  const [fb,setFb]=useState({boardW:0.6,boardL:1.2})
+  const [ins,setIns]=useState({panelW:0.6,panelL:1.2})
+  const [tiles,setTiles]=useState({tileW:0.2,tileL:0.2,sparePct:10})
+  const [tab,setTab]=useState('vegger')
+  const [projects,setProjects]=useState([]); const [proj,setProj]=useState('')
+  useEffect(()=>{getProjects().then(setProjects)},[])
+  const W=wallsCalc(p); const R=roofCalc(p); const F=floorCalc(p,fb); const I=insulationCalc(W.netArea,ins); const T=tilesCalc(F.area,tiles)
+  const cvs=useRef(); useEffect(()=>createScene(p,cvs.current),[p])
+  async function save(){ if(!proj)return alert('Velg prosjekt'); const items=[
+    {name:'Veggspon/plate',qty:W.sheets,unit:'stk',note:`Rom ${p.length}x${p.width}x${p.height}`},
+    {name:'Stendere',qty:W.studs,unit:'stk',note:`CC ${p.studSpacing}m`},
+    {name:'Takplater',qty:R.sheets,unit:'stk',note:`Vinkel ${p.pitchDeg}°`},
+    {name:'Gulvplater',qty:F.sheets,unit:'stk'},
+    {name:'Isolasjonsplater',qty:I.panels,unit:'stk'},
+    {name:'Fliser',qty:T.count,unit:'stk',note:`Svinn ${tiles.sparePct}%`},
+    {name:'Takstoler',qty:R.trussCount,unit:'stk',note:`Top chord ca. ${R.topChord}m`}
+  ]; const r=await bulkSaveMaterials(proj,items); if((r.shortages||[]).length){alert('Lagret. Mangler på lager for:\n'+r.shortages.map(s=>`${s.name}: mangler ${s.missing} (hadde ${s.had})`).join('\n'))}else{alert('Lagret og trukket fra Hovedlager.')} }
+  return(<div className='container'><div className='card'><h3>Kalkulatorer + 3D</h3>
+  <div className='tabbar'>{['vegger','tak','gulv','isolasjon','fliser','3D','lagre'].map(k=>(<div key={k} className={'tab '+(tab===k?'active':'')} onClick={()=>setTab(k)}>{k.toUpperCase()}</div>))}</div>
+  {tab==='vegger'&&(<div className='row'><input className='input' type='number' step='0.1' value={p.length} onChange={e=>setP({...p,length:+e.target.value})}/><input className='input' type='number' step='0.1' value={p.width} onChange={e=>setP({...p,width:+e.target.value})}/><input className='input' type='number' step='0.1' value={p.height} onChange={e=>setP({...p,height:+e.target.value})}/><input className='input' type='number' step='0.1' value={p.studSpacing} onChange={e=>setP({...p,studSpacing:+e.target.value})}/><input className='input' type='number' step='0.1' value={p.boardW} onChange={e=>setP({...p,boardW:+e.target.value})}/><input className='input' type='number' step='0.1' value={p.boardL} onChange={e=>setP({...p,boardL:+e.target.value})}/><input className='input' type='number' step='0.1' value={p.doorW} onChange={e=>setP({...p,doorW:+e.target.value})}/><input className='input' type='number' step='0.1' value={p.doorH} onChange={e=>setP({...p,doorH:+e.target.value})}/><input className='input' type='number' step='0.1' value={p.winW} onChange={e=>setP({...p,winW:+e.target.value})}/><input className='input' type='number' step='0.1' value={p.winH} onChange={e=>setP({...p,winH:+e.target.value})}/><div style={{width:'100%'}}><p>Omkrets <b>{W.perimeter} m</b> • Stendere <b>{W.studs}</b> • Nettovegg <b>{W.netArea} m²</b> • Plater <b>{W.sheets}</b></p></div></div>)}
+  {tab==='tak'&&(<div className='row'><input className='input' type='number' step='0.1' value={p.pitchDeg} onChange={e=>setP({...p,pitchDeg:+e.target.value})}/><div style={{width:'100%'}}><p>Takareal <b>{R.area} m²</b> • Plater <b>{R.sheets}</b> • Takstoler <b>{R.trussCount}</b> • Top chord <b>{R.topChord} m</b></p></div></div>)}
+  {tab==='gulv'&&(<div className='row'><input className='input' type='number' step='0.1' value={fb.boardW} onChange={e=>setFb({...fb,boardW:+e.target.value})}/><input className='input' type='number' step='0.1' value={fb.boardL} onChange={e=>setFb({...fb,boardL:+e.target.value})}/><div style={{width:'100%'}}><p>Gulvareal <b>{F.area} m²</b> • Plater <b>{F.sheets}</b></p></div></div>)}
+  {tab==='isolasjon'&&(<div className='row'><input className='input' type='number' step='0.1' value={ins.panelW} onChange={e=>setIns({...ins,panelW:+e.target.value})}/><input className='input' type='number' step='0.1' value={ins.panelL} onChange={e=>setIns({...ins,panelL:+e.target.value})}/><div style={{width:'100%'}}><p>Isolasjonsplater <b>{I.panels}</b> stk</p></div></div>)}
+  {tab==='fliser'&&(<div className='row'><input className='input' type='number' step='0.01' value={tiles.tileW} onChange={e=>setTiles({...tiles,tileW:+e.target.value})}/><input className='input' type='number' step='0.01' value={tiles.tileL} onChange={e=>setTiles({...tiles,tileL:+e.target.value})}/><input className='input' type='number' step='1' value={tiles.sparePct} onChange={e=>setTiles({...tiles,sparePct:+e.target.value})}/><div style={{width:'100%'}}><p>Antall fliser <b>{T.count}</b> (gulvareal {F.area} m²)</p></div></div>)}
+  {tab==='3D'&&(<div><canvas ref={cvs} width={420} height={420} style={{border:'1px solid #e2e8f0',borderRadius:8}}/></div>)}
+  {tab==='lagre'&&(<div className='row'><select className='select' value={proj} onChange={e=>setProj(e.target.value)}><option value=''>Velg prosjekt…</option>{projects.map(x=><option key={x.id} value={x.id}>{x.name}</option>)}</select><button className='btn primary' onClick={save}>Lagre til prosjekt (trekk fra Hovedlager)</button><p className='small' style={{width:'100%'}}>Hvis noe mangler i Hovedlager, får du en liste over mangler. Lav beholdning utløser SMS hvis konfigurert.</p></div>)}
+  </div></div>)}

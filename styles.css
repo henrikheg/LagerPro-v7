@@ -1,0 +1,13 @@
+:root{--blue:#1e40af;--light:#f8fafc;--card:#fff;--muted:#64748b;--danger:#ef4444}
+*{box-sizing:border-box}body{margin:0;font-family:Inter,system-ui,Segoe UI,Roboto;background:var(--light);color:#0f172a}
+.topbar{display:flex;justify-content:space-between;align-items:center;padding:10px 16px;background:#fff;box-shadow:0 1px 4px rgba(0,0,0,.06);position:sticky;top:0;z-index:9}
+.brand{display:flex;align-items:center;gap:8px;font-weight:800;color:var(--blue)}
+.container{max-width:1200px;margin:0 auto;padding:16px}
+.card{background:var(--card);padding:14px;border-radius:10px;box-shadow:0 1px 3px rgba(0,0,0,.05);margin-bottom:12px}
+.btn{border:1px solid #e2e8f0;background:#fff;border-radius:8px;padding:8px 12px;cursor:pointer}
+.btn.primary{background:var(--blue);color:#fff;border:none}
+.input,.select,textarea{padding:8px;border:1px solid #e2e8f0;border-radius:8px;width:100%;background:#fff}
+.row{display:flex;gap:8px;flex-wrap:wrap}
+.tabbar{display:flex;gap:6px;margin:8px 0}.tab{padding:6px 10px;border:1px solid #e2e8f0;border-radius:8px;cursor:pointer}.tab.active{background:#eef2ff;border-color:#c7d2fe}
+.small{font-size:12px;color:#64748b}
+.table{width:100%;border-collapse:collapse}.table th,.table td{border-bottom:1px solid #e2e8f0;padding:8px;text-align:left}
