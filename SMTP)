@@ -1,7 +1,0 @@
-SMTP_HOST=smtp.henrikheg@gmail.com
-SMTP_PORT=587
-SMTP_SECURE=false
-SMTP_USER=din.epost@gmail.com
-SMTP_PASS=app_passord_eller_api_nøkkel
-EMAIL_FROM="LagerPro <din.epost@gmail.com>"
-EMAIL_TO=din.epost@gmail.com
