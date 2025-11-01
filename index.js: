@@ -1,0 +1,14 @@
+import twilio from "twilio";
+const smsClient = twilio(
+  process.env.TWILIO_ACCOUNT_SID,
+  process.env.TWILIO_AUTH_TOKEN
+);
+
+async function sendLowStockSMS(name, qty) {
+  const msg = `LagerPro: Lav beholdning av ${name}. Kun ${qty} igjen.`;
+  await smsClient.messages.create({
+    body: msg,
+    from: process.env.TWILIO_FROM,
+    to: "+47XXXXXXX" // ditt nummer
+  });
+}
