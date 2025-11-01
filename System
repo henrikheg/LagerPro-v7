@@ -1,0 +1,11 @@
+inventory-server/
+├── package.json
+├── index.js
+├── .env.sample
+└── database/
+    └── .gitkeep
+
+inventory-web/
+├── package.json
+├── vite.config.js
+└── index.html
