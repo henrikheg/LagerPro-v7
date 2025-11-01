@@ -37,3 +37,23 @@ export default function ThreeView() {
 <button onClick={() => saveToProject(selected.id)} style={{ marginTop: 10 }}>
   💾 Lagre materialer
 </button>
+<div style={{ marginTop: 10 }}>
+  <button
+    onClick={() => getProjectPDF(token, selected.id)}
+    style={{ marginRight: 10 }}
+  >
+    📄 Last ned PDF
+  </button>
+  <button
+    onClick={async () => {
+      try {
+        await sendProjectEmail(token, selected.id);
+        alert("✅ E-post sendt!");
+      } catch {
+        alert("❌ Kunne ikke sende e-post");
+      }
+    }}
+  >
+    ✉️ Send e-post
+  </button>
+</div>
