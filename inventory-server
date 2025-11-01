@@ -1,0 +1,6 @@
+inventory-server/
+├── package.json
+├── index.js
+├── .env.sample
+└── database/
+    └── .gitkeep
