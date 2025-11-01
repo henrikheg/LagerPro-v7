@@ -34,3 +34,6 @@ export default function ThreeView() {
 
   return <div style={{ width: "100%", height: 300 }} ref={mount}></div>;
 }
+<button onClick={() => saveToProject(selected.id)} style={{ marginTop: 10 }}>
+  💾 Lagre materialer
+</button>
