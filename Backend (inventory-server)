@@ -1,6 +1,0 @@
-app.post("/api/calc/materials", async (req,res)=>{
-  const { length, width, height, density } = req.body;
-  const volume = length * width * height;
-  const mass = volume * density;
-  res.json({ volume, mass });
-});
