@@ -69,3 +69,25 @@ export async function calcVolume(data) {
   });
   return r.json();
 }
+// prosjektrapport som PDF
+export async function getProjectPDF(token, projectId) {
+  const r = await fetch(API + `/api/projects/${projectId}/report/pdf`, {
+    headers: { Authorization: "Bearer " + token }
+  });
+  const blob = await r.blob();
+  const url = URL.createObjectURL(blob);
+  const link = document.createElement("a");
+  link.href = url;
+  link.download = `prosjekt_${projectId}.pdf`;
+  link.click();
+}
+
+// prosjektrapport på e-post
+export async function sendProjectEmail(token, projectId) {
+  const r = await fetch(API + `/api/projects/${projectId}/report/email`, {
+    method: "POST",
+    headers: { Authorization: "Bearer " + token }
+  });
+  if (!r.ok) throw new Error("Feil ved sending av e-post");
+  return r.json();
+}
